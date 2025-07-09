@@ -112,21 +112,33 @@ const isVetAccount = asyncHandler(async(req,res,next)=>{
 })
 
 const isVetOrOwnerOfPet = async (req, res, next) => {
-  const user = req.user || req.vet;
+  const loggedInUser = req.user;
+
+  if (!loggedInUser || !loggedInUser._id) {
+    return res.status(401).json(new ApiResponse(401, "Unauthorized"));
+  }
+
   const petId = req.params.id;
-
   const pet = await Pet.findById(petId).populate('petOwner');
-  if (!pet) return res.status(404).json(new ApiResponse(404, "Pet not found"));
+  if (!pet) {
+    return res.status(404).json(new ApiResponse(404, "Pet not found"));
+  }
 
-  const isOwner = user._id.toString() === pet.petOwner._id.toString();
-  const isVet = req.vet != null;
+  const userId = loggedInUser._id.toString();
+  const userRole = loggedInUser.role;  //
+  
 
-  if (isOwner || isVet) {
+  const isVet = userRole === UserRolesEnum.VET;   // ✅ Check role
+  const isOwner = pet.petOwner && pet.petOwner._id.toString() === userId;
+
+  if (isVet || isOwner) {
     req.pet = pet;
     return next();
   }
 
   return res.status(403).json(new ApiResponse(403, "Not authorized"));
 };
+
+
 
 export {isUserLoggedIn,isLoggedInUserPetOwner,isVetAccount,isVetOrOwnerOfPet}

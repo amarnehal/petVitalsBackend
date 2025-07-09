@@ -82,6 +82,7 @@ const logIn = asyncHandler(async (req, res) => {
     id: existingUser._id,
     userName: existingUser.userName,
     email: existingUser.email,
+    role:existingUser.role,
   };
 
   return res.status(200).json(new ApiResponse(200, "Login successful", { accessToken, user: safeUser }));
