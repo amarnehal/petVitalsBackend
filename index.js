@@ -11,8 +11,17 @@ dotenv.config(
     }
 )
 
+const allowedOrigins = [
+  'http://localhost:5173',             // for local development
+  'https://your-frontend-domain.com'   // (for when you deploy frontend)
+];
+
+
 app.use(cookieParser());
-app.use(cors({ credentials: true}));
+app.use(cors(
+    { 
+         origin: allowedOrigins,
+        credentials: true}));
 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
