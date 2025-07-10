@@ -16,18 +16,28 @@ const allowedOrigins = [
   'https://your-frontend-domain.com'  
 ];
 
-app.use(cookieParser());
-app.use(cors({
+
+
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (e.g., Postman) or matching origins
+    console.log("Incoming origin:", origin);
+
+    // Allow requests with no origin (Postman, server-to-server) or matching origins
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn("Blocked by CORS:", origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
+
+app.use(cookieParser());
+
+
 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
