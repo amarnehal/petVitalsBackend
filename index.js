@@ -12,16 +12,22 @@ dotenv.config(
 )
 
 const allowedOrigins = [
-  'http://localhost:5173',             // for local development
-  'https://your-frontend-domain.com'   // (for when you deploy frontend)
+  'http://localhost:5173',
+  'https://your-frontend-domain.com'  
 ];
 
-
 app.use(cookieParser());
-app.use(cors(
-    { 
-         origin: allowedOrigins,
-        credentials: true}));
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (e.g., Postman) or matching origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
