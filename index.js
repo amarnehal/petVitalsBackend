@@ -1,8 +1,6 @@
 import app from "./src/app.js";
 import dotenv from "dotenv";
 import conectDb from "./src/db/connection.js";
-import cookieParser from "cookie-parser";
-import cors from "cors";
 import express from "express";
 
 dotenv.config(
@@ -11,36 +9,7 @@ dotenv.config(
     }
 )
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://your-frontend-domain.com'  
-];
 
-
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    console.log("Incoming origin:", origin);
-
-    // Allow requests with no origin (Postman, server-to-server) or matching origins
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn("Blocked by CORS:", origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-};
-
-app.use(cors(corsOptions));
-
-app.use(cookieParser());
-
-
-
-app.use(express.json());
-app.use(express.urlencoded({extended:true}));
 app.use(express.static("public"));
 
 const PORT = process.env.PORT || 3000;
