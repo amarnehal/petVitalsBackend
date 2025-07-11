@@ -81,7 +81,7 @@ const updatePetInfo = asyncHandler(async (req, res) => {
 // Create Pet Medical Record
 const createPetMedicalRecord = asyncHandler(async (req, res) => {
   const { _id: petId } = req.pet;
-  let { disease, allergies, lastVaccinationDate, nextVaccinatonScheduleDate, notes = "" } = req.body;
+  let { disease, allergies,vaccinationName, lastVaccinationDate, nextVaccinatonScheduleDate, notes = "" } = req.body;
 
   const xrayFiles = req.files["XRay"] || [];
   const reports = req.files["Reports"] || [];
@@ -100,7 +100,7 @@ const createPetMedicalRecord = asyncHandler(async (req, res) => {
   const diseaseArray = disease ? (Array.isArray(disease) ? disease : [disease]) : [];
   const allergiesArray = allergies ? (Array.isArray(allergies) ? allergies : [allergies]) : [];
 
-  if (!diseaseArray.length || !allergiesArray.length || !lastVaccinationDate || !nextVaccinatonScheduleDate) {
+  if (!diseaseArray.length || !allergiesArray.length  ||!vaccinationName || !lastVaccinationDate || !nextVaccinatonScheduleDate) {
     return res.status(400).json(new ApiResponse(400, "All fields are required", false));
   }
 
@@ -113,6 +113,7 @@ const createPetMedicalRecord = asyncHandler(async (req, res) => {
     petId,
     disease: diseaseArray,
     allergies: allergiesArray,
+    vaccinationName,                    //// added missing field
     xRay: xrayUpload ? [{
       url: xrayUpload.secure_url,
       mimetype: xrayFiles[0].mimetype,
@@ -162,35 +163,55 @@ const updatePetMedicalInfo = asyncHandler(async (req, res) => {
   const record = await PetMedicalRecord.findOne({ petId });
   if (!record) return res.status(404).json(new ApiResponse(404, "Medical record not found", false));
 
-  const { disease, allergies, lastVaccinationDate, nextVaccinatonScheduleDate, notes } = req.body;
+  const { vaccinationName, disease, allergies, lastVaccinationDate, nextVaccinatonScheduleDate, notes } = req.body;
   const xrayFile = req.files?.["XRay"] || [];
   const reportsFile = req.files?.["Reports"] || [];
   const prescriptionFile = req.files?.["Prescription"] || [];
 
-  if (disease) record.disease = disease;
-  if (allergies) record.allergies = allergies;
+  if (disease) record.disease = Array.isArray(disease) ? disease : [disease];
+  if (allergies) record.allergies = Array.isArray(allergies) ? allergies : [allergies];
+  if (vaccinationName) record.vaccinationName = vaccinationName;
   if (lastVaccinationDate) record.lastVaccinationDate = lastVaccinationDate;
   if (nextVaccinatonScheduleDate) record.nextVaccinatonScheduleDate = nextVaccinatonScheduleDate;
   if (notes) record.notes = notes;
 
   if (xrayFile.length > 0) {
-    const updatedXray = await updateOnCloudinary(xrayFile[0].path, record.xRay[0]?.cloudinaryImageId);
-    record.xRay[0] = { url: updatedXray.secure_url, mimetype: xrayFile[0].mimetype, size: xrayFile[0].size, cloudinaryImageId: updatedXray.public_id };
+    const existingXrayId = record.xRay?.[0]?.cloudinaryImageId;
+    const updatedXray = await updateOnCloudinary(xrayFile[0].path, existingXrayId);
+    record.xRay = [{
+      url: updatedXray.secure_url,
+      mimetype: xrayFile[0].mimetype,
+      size: xrayFile[0].size,
+      cloudinaryImageId: updatedXray.public_id
+    }];
   }
 
   if (reportsFile.length > 0) {
-    const updatedReport = await updateOnCloudinary(reportsFile[0].path, record.reports[0]?.cloudinaryImageId);
-    record.reports[0] = { url: updatedReport.secure_url, mimetype: reportsFile[0].mimetype, size: reportsFile[0].size, cloudinaryImageId: updatedReport.public_id };
+    const existingReportId = record.reports?.[0]?.cloudinaryImageId;
+    const updatedReport = await updateOnCloudinary(reportsFile[0].path, existingReportId);
+    record.reports = [{
+      url: updatedReport.secure_url,
+      mimetype: reportsFile[0].mimetype,
+      size: reportsFile[0].size,
+      cloudinaryImageId: updatedReport.public_id
+    }];
   }
 
   if (prescriptionFile.length > 0) {
-    const updatedPrescription = await updateOnCloudinary(prescriptionFile[0].path, record.prescription[0]?.cloudinaryImageId);
-    record.prescription[0] = { url: updatedPrescription.secure_url, mimetype: prescriptionFile[0].mimetype, size: prescriptionFile[0].size, cloudinaryImageId: updatedPrescription.public_id };
+    const existingPrescriptionId = record.prescription?.[0]?.cloudinaryImageId;
+    const updatedPrescription = await updateOnCloudinary(prescriptionFile[0].path, existingPrescriptionId);
+    record.prescription = [{
+      url: updatedPrescription.secure_url,
+      mimetype: prescriptionFile[0].mimetype,
+      size: prescriptionFile[0].size,
+      cloudinaryImageId: updatedPrescription.public_id
+    }];
   }
 
   await record.save();
   return res.status(200).json(new ApiResponse(200, "Medical info updated", record));
 });
+
 
 // Remove Pet & Medical Info
 const removePet = asyncHandler(async (req, res) => {
