@@ -230,11 +230,18 @@ const removePet = asyncHandler(async (req, res) => {
       images.forEach(img => imagesToDelete.push(img.cloudinaryImageId));
     });
 
-    if (imagesToDelete.length > 0) await deleteFromCloudinary(imagesToDelete);
-    await medicalRecord.remove();
+    if (imagesToDelete.length > 0) {
+      try {
+        await deleteFromCloudinary(imagesToDelete);
+      } catch (cloudErr) {
+        console.error("Cloudinary Deletion Error:", cloudErr);
+        // Optionally: continue even if image deletion fails
+      }
+    }
+    await medicalRecord.deleteOne();
   }
 
-  await pet.remove();
+   await pet.deleteOne();
 
   return res.status(200).json(new ApiResponse(200, "Pet and medical record removed"));
 });

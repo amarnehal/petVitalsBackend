@@ -71,21 +71,28 @@ const updateOnCloudinary = async (localFilePath, publicId) => {
 const deleteFromCloudinary = async (publicIds) => {
   try {
     if (!Array.isArray(publicIds) || publicIds.length === 0) {
-      throw new ApiError(
-        "No publicIds recieved on cloudinary .Failed to perform delete action",
-        error,
-      );
+      throw new ApiError("No publicIds received. Failed to perform delete action", 400);
     }
+
     const deleteResults = await Promise.all(
-      publicIds.map((id) => cloudinary.uploader.destroy(id)),
+      publicIds.map(async (id) => {
+        const result = await cloudinary.uploader.destroy(id);
+        if (result.result !== "ok" && result.result !== "not found") {
+          console.warn(`Cloudinary deletion issue for ID: ${id}`, result);
+        }
+        return result;
+      })
     );
 
-    console.log("Images removed successfully", deleteResults);
+    console.log("Cloudinary images deleted:", deleteResults);
     return deleteResults;
+
   } catch (error) {
+    console.error("Cloudinary Deletion Error:", error); // 
     throw new ApiError(
-      "Some error occurred while attempting to delete images",
-      error.message,
+      "Failed to delete one or more images from Cloudinary",
+      500,
+      error?.message || error.toString()
     );
   }
 };
