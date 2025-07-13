@@ -12,14 +12,21 @@ const userSchema = new Schema(
       unique: [true, "UserName must be a unique value can include numbers"],
     },
     email: {
-      type: String,
-      required: [true, "email is required"],
-      unique: true,
-    },
-    phoneNumber: {
-      type: String,
-      required: [true, "PhoneNumber is required "],
-    },
+  type: String,
+  required: function () {
+    return !this.createdByVet && !this.phoneNumber;
+  },
+  unique: true,
+  sparse: true,
+},
+phoneNumber: {
+  type: String,
+  required: function () {
+    return !this.createdByVet && !this.email;
+  },
+  unique: true,
+  sparse: true,
+},
     notificationMode: {
       type: String,
       enum: ["Message", "Email"],
@@ -68,10 +75,16 @@ const userSchema = new Schema(
   { timestamps: true },
 );
 
+
 ///// Password Encrypt /////////////////
 
 userSchema.pre("save", async function (next) {
+  if (this.isClaimed && !this.password) {
+    return next(new Error("Password is required for claimed accounts."));
+  }
+
   if (!this.isModified("password")) return next();
+
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
@@ -121,5 +134,16 @@ userSchema.methods.generateTemporaryToken = function () {
 
   return { unhashedToken, hashedToken, tokenExpiry };
 };
+
+///////////// Hide sensitive fields on output ////////////
+userSchema.methods.toJSON = function () {
+  const obj = this.toObject();
+  delete obj.password;
+  delete obj.refreshToken;
+  delete obj.emailVerificationToken;
+  delete obj.forgotPasswordToken;
+  return obj;
+};
+
 
 export const User = mongoose.model("User", userSchema);

@@ -3,7 +3,11 @@ import { ApiResponse } from "../utils/api-response.js";
 import { Pet } from "../models/pet.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { PetMedicalRecord } from "../models/petHistory.models.js";
-import { uploadOnCloudinary, updateOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  updateOnCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import { User } from "../models/user.models.js";
 
 // Register Pet (Vet or User)
@@ -14,14 +18,24 @@ const registerPet = asyncHandler(async (req, res) => {
 
   if (vetId) {
     if (!userName && !email && !phoneNumber) {
-      return res.status(400).json(new ApiResponse(400, "Provide at least userName, email, or phoneNumber", false));
+      return res
+        .status(400)
+        .json(
+          new ApiResponse(
+            400,
+            "Provide at least userName, email, or phoneNumber",
+            false,
+          ),
+        );
     }
     if (!petType || !name || !age || !gender) {
-      return res.status(400).json(new ApiResponse(400, "All pet fields are required", false));
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "All pet fields are required", false));
     }
 
     const user = await User.findOne({
-      $or: [{ userName }, { email }, { phoneNumber }]
+      $or: [{ userName }, { email }, { phoneNumber }],
     }).select("-password");
 
     if (!user) {
@@ -30,29 +44,39 @@ const registerPet = asyncHandler(async (req, res) => {
 
     const petExists = await Pet.findOne({ petOwner: user._id, name });
     if (petExists) {
-      return res.status(400).json(new ApiResponse(400, "Pet already exists", false));
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "Pet already exists", false));
     }
 
     const newPet = new Pet({ petOwner: user._id, petType, name, age, gender });
     await newPet.save();
 
-    return res.status(201).json(new ApiResponse(201, "Pet registered successfully", newPet, true));
+    return res
+      .status(201)
+      .json(new ApiResponse(201, "Pet registered successfully", newPet, true));
   }
 
   if (userId) {
     if (!petType || !name || !age || !gender) {
-      return res.status(400).json(new ApiResponse(400, "All pet fields are required", false));
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "All pet fields are required", false));
     }
 
     const petExists = await Pet.findOne({ petOwner: userId, name });
     if (petExists) {
-      return res.status(400).json(new ApiResponse(400, "Pet already exists", false));
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "Pet already exists", false));
     }
 
     const newPet = new Pet({ petOwner: userId, petType, name, age, gender });
     await newPet.save();
 
-    return res.status(201).json(new ApiResponse(201, "Pet registered successfully", newPet, true));
+    return res
+      .status(201)
+      .json(new ApiResponse(201, "Pet registered successfully", newPet, true));
   }
 
   return res.status(401).json(new ApiResponse(401, "Unauthorized", false));
@@ -64,170 +88,272 @@ const updatePetInfo = asyncHandler(async (req, res) => {
   const { name, age, gender } = req.body;
 
   if (!petId) {
-    return res.status(400).json(new ApiResponse(400, "Unauthorized request", false));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Unauthorized request", false));
   }
   if (!name || !age || !gender) {
-    return res.status(400).json(new ApiResponse(400, "All fields are required", false));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "All fields are required", false));
   }
 
-  const updatedPet = await Pet.findByIdAndUpdate(petId, { name, age, gender }, { new: true });
+  const updatedPet = await Pet.findByIdAndUpdate(
+    petId,
+    { name, age, gender },
+    { new: true },
+  );
   if (!updatedPet) {
-    return res.status(400).json(new ApiResponse(400, "Failed to update pet info", false));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Failed to update pet info", false));
   }
 
-  return res.status(200).json(new ApiResponse(200, "Pet info updated successfully", updatedPet));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Pet info updated successfully", updatedPet));
 });
 
 // Create Pet Medical Record
 const createPetMedicalRecord = asyncHandler(async (req, res) => {
   const { _id: petId } = req.pet;
-  let { disease, allergies,vaccinationName, lastVaccinationDate, nextVaccinatonScheduleDate, notes = "" } = req.body;
+  let {
+    disease,
+    allergies,
+    vaccinationName,
+    lastVaccinationDate,
+    nextVaccinatonScheduleDate,
+    notes = "",
+  } = req.body;
 
   const xrayFiles = req.files["XRay"] || [];
   const reports = req.files["Reports"] || [];
   const prescription = req.files["Prescription"] || [];
 
   if (!petId) {
-    return res.status(400).json(new ApiResponse(400, "No petId provided", false));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "No petId provided", false));
   }
 
   const recordExists = await PetMedicalRecord.findOne({ petId });
   if (recordExists) {
-    return res.status(400).json(new ApiResponse(400, "Medical record already exists", false));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Medical record already exists", false));
   }
 
   // Normalize arrays
-  const diseaseArray = disease ? (Array.isArray(disease) ? disease : [disease]) : [];
-  const allergiesArray = allergies ? (Array.isArray(allergies) ? allergies : [allergies]) : [];
+  const diseaseArray = disease
+    ? Array.isArray(disease)
+      ? disease
+      : [disease]
+    : [];
+  const allergiesArray = allergies
+    ? Array.isArray(allergies)
+      ? allergies
+      : [allergies]
+    : [];
 
-  if (!diseaseArray.length || !allergiesArray.length  ||!vaccinationName || !lastVaccinationDate || !nextVaccinatonScheduleDate) {
-    return res.status(400).json(new ApiResponse(400, "All fields are required", false));
+  if (
+    !diseaseArray.length ||
+    !allergiesArray.length ||
+    !vaccinationName ||
+    !lastVaccinationDate ||
+    !nextVaccinatonScheduleDate
+  ) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "All fields are required", false));
   }
 
   // Upload files if they exist
-  const xrayUpload = xrayFiles[0] ? await uploadOnCloudinary(xrayFiles[0].path) : null;
-  const reportsUpload = reports[0] ? await uploadOnCloudinary(reports[0].path) : null;
-  const prescriptionUpload = prescription[0] ? await uploadOnCloudinary(prescription[0].path) : null;
+  const xrayUpload = xrayFiles[0]
+    ? await uploadOnCloudinary(xrayFiles[0].path)
+    : null;
+  const reportsUpload = reports[0]
+    ? await uploadOnCloudinary(reports[0].path)
+    : null;
+  const prescriptionUpload = prescription[0]
+    ? await uploadOnCloudinary(prescription[0].path)
+    : null;
 
   const petInfo = new PetMedicalRecord({
     petId,
     disease: diseaseArray,
     allergies: allergiesArray,
-    vaccinationName,                    //// added missing field
-    xRay: xrayUpload ? [{
-      url: xrayUpload.secure_url,
-      mimetype: xrayFiles[0].mimetype,
-      size: xrayFiles[0].size,
-      cloudinaryImageId: xrayUpload.public_id
-    }] : [],
-    reports: reportsUpload ? [{
-      url: reportsUpload.secure_url,
-      mimetype: reports[0].mimetype,
-      size: reports[0].size,
-      cloudinaryImageId: reportsUpload.public_id
-    }] : [],
-    prescription: prescriptionUpload ? [{
-      url: prescriptionUpload.secure_url,
-      mimetype: prescription[0].mimetype,
-      size: prescription[0].size,
-      cloudinaryImageId: prescriptionUpload.public_id
-    }] : [],
+    vaccinationName, //// added missing field
+    xRay: xrayUpload
+      ? [
+          {
+            url: xrayUpload.secure_url,
+            mimetype: xrayFiles[0].mimetype,
+            size: xrayFiles[0].size,
+            cloudinaryImageId: xrayUpload.public_id,
+          },
+        ]
+      : [],
+    reports: reportsUpload
+      ? [
+          {
+            url: reportsUpload.secure_url,
+            mimetype: reports[0].mimetype,
+            size: reports[0].size,
+            cloudinaryImageId: reportsUpload.public_id,
+          },
+        ]
+      : [],
+    prescription: prescriptionUpload
+      ? [
+          {
+            url: prescriptionUpload.secure_url,
+            mimetype: prescription[0].mimetype,
+            size: prescription[0].size,
+            cloudinaryImageId: prescriptionUpload.public_id,
+          },
+        ]
+      : [],
     lastVaccinationDate,
     nextVaccinatonScheduleDate,
     notes,
   });
 
   await petInfo.save();
-  return res.status(201).json(new ApiResponse(201, "Pet medical record created successfully", petInfo));
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(201, "Pet medical record created successfully", petInfo),
+    );
 });
-
 
 // Get Pet + Medical Info
 const getPetInfo = asyncHandler(async (req, res) => {
   const { id: petId } = req.params;
-  if (!petId) return res.status(400).json(new ApiResponse(400, "No petId provided", false));
+  if (!petId)
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "No petId provided", false));
 
   const pet = await Pet.findById(petId);
-  if (!pet) return res.status(404).json(new ApiResponse(404, "Pet not found", false));
+  if (!pet)
+    return res.status(404).json(new ApiResponse(404, "Pet not found", false));
 
   const medicalInfo = await PetMedicalRecord.findOne({ petId });
 
-  return res.status(200).json(new ApiResponse(200, "Pet details fetched", { pet, medicalInfo: medicalInfo || null }));
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, "Pet details fetched", {
+        pet,
+        medicalInfo: medicalInfo || null,
+      }),
+    );
 });
 
 // Update Pet Medical Info
 const updatePetMedicalInfo = asyncHandler(async (req, res) => {
   const { id: petId } = req.params;
-  if (!petId) return res.status(400).json(new ApiResponse(400, "Invalid petId", false));
+  if (!petId)
+    return res.status(400).json(new ApiResponse(400, "Invalid petId", false));
 
   const record = await PetMedicalRecord.findOne({ petId });
-  if (!record) return res.status(404).json(new ApiResponse(404, "Medical record not found", false));
+  if (!record)
+    return res
+      .status(404)
+      .json(new ApiResponse(404, "Medical record not found", false));
 
-  const { vaccinationName, disease, allergies, lastVaccinationDate, nextVaccinatonScheduleDate, notes } = req.body;
+  const {
+    vaccinationName,
+    disease,
+    allergies,
+    lastVaccinationDate,
+    nextVaccinatonScheduleDate,
+    notes,
+  } = req.body;
   const xrayFile = req.files?.["XRay"] || [];
   const reportsFile = req.files?.["Reports"] || [];
   const prescriptionFile = req.files?.["Prescription"] || [];
 
   if (disease) record.disease = Array.isArray(disease) ? disease : [disease];
-  if (allergies) record.allergies = Array.isArray(allergies) ? allergies : [allergies];
+  if (allergies)
+    record.allergies = Array.isArray(allergies) ? allergies : [allergies];
   if (vaccinationName) record.vaccinationName = vaccinationName;
   if (lastVaccinationDate) record.lastVaccinationDate = lastVaccinationDate;
-  if (nextVaccinatonScheduleDate) record.nextVaccinatonScheduleDate = nextVaccinatonScheduleDate;
+  if (nextVaccinatonScheduleDate)
+    record.nextVaccinatonScheduleDate = nextVaccinatonScheduleDate;
   if (notes) record.notes = notes;
 
   if (xrayFile.length > 0) {
     const existingXrayId = record.xRay?.[0]?.cloudinaryImageId;
-    const updatedXray = await updateOnCloudinary(xrayFile[0].path, existingXrayId);
-    record.xRay = [{
-      url: updatedXray.secure_url,
-      mimetype: xrayFile[0].mimetype,
-      size: xrayFile[0].size,
-      cloudinaryImageId: updatedXray.public_id
-    }];
+    const updatedXray = await updateOnCloudinary(
+      xrayFile[0].path,
+      existingXrayId,
+    );
+    record.xRay = [
+      {
+        url: updatedXray.secure_url,
+        mimetype: xrayFile[0].mimetype,
+        size: xrayFile[0].size,
+        cloudinaryImageId: updatedXray.public_id,
+      },
+    ];
   }
 
   if (reportsFile.length > 0) {
     const existingReportId = record.reports?.[0]?.cloudinaryImageId;
-    const updatedReport = await updateOnCloudinary(reportsFile[0].path, existingReportId);
-    record.reports = [{
-      url: updatedReport.secure_url,
-      mimetype: reportsFile[0].mimetype,
-      size: reportsFile[0].size,
-      cloudinaryImageId: updatedReport.public_id
-    }];
+    const updatedReport = await updateOnCloudinary(
+      reportsFile[0].path,
+      existingReportId,
+    );
+    record.reports = [
+      {
+        url: updatedReport.secure_url,
+        mimetype: reportsFile[0].mimetype,
+        size: reportsFile[0].size,
+        cloudinaryImageId: updatedReport.public_id,
+      },
+    ];
   }
 
   if (prescriptionFile.length > 0) {
     const existingPrescriptionId = record.prescription?.[0]?.cloudinaryImageId;
-    const updatedPrescription = await updateOnCloudinary(prescriptionFile[0].path, existingPrescriptionId);
-    record.prescription = [{
-      url: updatedPrescription.secure_url,
-      mimetype: prescriptionFile[0].mimetype,
-      size: prescriptionFile[0].size,
-      cloudinaryImageId: updatedPrescription.public_id
-    }];
+    const updatedPrescription = await updateOnCloudinary(
+      prescriptionFile[0].path,
+      existingPrescriptionId,
+    );
+    record.prescription = [
+      {
+        url: updatedPrescription.secure_url,
+        mimetype: prescriptionFile[0].mimetype,
+        size: prescriptionFile[0].size,
+        cloudinaryImageId: updatedPrescription.public_id,
+      },
+    ];
   }
 
   await record.save();
-  return res.status(200).json(new ApiResponse(200, "Medical info updated", record));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Medical info updated", record));
 });
-
 
 // Remove Pet & Medical Info
 const removePet = asyncHandler(async (req, res) => {
   const { id: petId } = req.params;
-  if (!petId) return res.status(400).json(new ApiResponse(400, "Invalid petId", false));
+  if (!petId)
+    return res.status(400).json(new ApiResponse(400, "Invalid petId", false));
 
   const pet = await Pet.findById(petId);
-  if (!pet) return res.status(404).json(new ApiResponse(404, "Pet not found", false));
+  if (!pet)
+    return res.status(404).json(new ApiResponse(404, "Pet not found", false));
 
   const medicalRecord = await PetMedicalRecord.findOne({ petId });
 
   const imagesToDelete = [];
   if (medicalRecord) {
-    ["xRay", "reports", "prescription"].forEach(key => {
+    ["xRay", "reports", "prescription"].forEach((key) => {
       const images = medicalRecord[key] || [];
-      images.forEach(img => imagesToDelete.push(img.cloudinaryImageId));
+      images.forEach((img) => imagesToDelete.push(img.cloudinaryImageId));
     });
 
     if (imagesToDelete.length > 0) {
@@ -241,9 +367,28 @@ const removePet = asyncHandler(async (req, res) => {
     await medicalRecord.deleteOne();
   }
 
-   await pet.deleteOne();
+  await pet.deleteOne();
 
-  return res.status(200).json(new ApiResponse(200, "Pet and medical record removed"));
+  // Optional cleanup: delete owner if no pets and unclaimed
+   const remainingPets = await Pet.find({ petOwner: ownerId }).lean();
+
+  if (remainingPets.length === 0) {
+    const owner = await User.findById(ownerId);
+    if (owner && !owner.isClaimed && owner.createdByVet) {
+      await User.findByIdAndDelete(owner._id);
+    }
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Pet and medical record removed"));
 });
 
-export { registerPet, updatePetInfo, createPetMedicalRecord, getPetInfo, updatePetMedicalInfo, removePet };
+export {
+  registerPet,
+  updatePetInfo,
+  createPetMedicalRecord,
+  getPetInfo,
+  updatePetMedicalInfo,
+  removePet,
+};

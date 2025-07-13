@@ -257,29 +257,27 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
 
   const { userName, email, phoneNumber, petName, petAge, petGender, petType } = req.body;
 
-  if (!userName || !email || !phoneNumber || !petName || !petAge || !petGender || !petType) {
-    return res.status(400).json(new ApiResponse(400, "All fields are required"));
-  }
+  if (!userName || !petName || !petAge || !petGender || !petType) {
+  return res.status(400).json(new ApiResponse(400, "Username and pet details are required"));
+}
 
-  let owner = await User.findOne({ email });
 
-  if (owner && owner.isClaimed) {
-    return res.status(400).json(new ApiResponse(400, "User already exists. Please ask them to log in."));
-  }
+ let owner;
 
-  if (!owner) {
-    const tempPassword = crypto.randomBytes(16).toString("hex");
+ /// check if owener has email or phoneNumber else by userName
 
-    owner = await User.create({
-      userName,
-      email,
-      phoneNumber,
-      password: tempPassword,
-      isClaimed: false,
-      createdByVet: true,
-      role: "user",
-    });
+if (email) {
+  owner = await User.findOne({ email });
+} else if (phoneNumber) {
+  owner = await User.findOne({ phoneNumber });
+} else {
+  owner = await User.findOne({ userName });
+}
 
+  // let owner = await User.findOne({ email });
+
+  // Only handle claim email flow **if email is present**
+  if (email) {
     const { unhashedToken, hashedToken, tokenExpiry } = owner.generateTemporaryToken();
 
     owner.emailVerificationToken = hashedToken;
@@ -296,15 +294,19 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     });
   }
 
-  const newPet = await Pet.create({
-    petOwner: owner._id,
-    name: petName,
-    age: petAge,
-    gender: petGender,
-    petType,
-  });
 
-  return res.status(201).json(new ApiResponse(201, "Pet and owner registered successfully", { owner, newPet }));
+// Proceed with pet creation
+const newPet = await Pet.create({
+  petOwner: owner._id,
+  name: petName,
+  age: petAge,
+  gender: petGender,
+  petType,
+});
+
+return res.status(201).json(
+  new ApiResponse(201, "Pet and owner registered successfully", { owner, newPet })
+);
 });
 
 export { 
@@ -317,3 +319,4 @@ export {
   getAllUsersWithPets, 
   registerPetWithOwner 
 };
+

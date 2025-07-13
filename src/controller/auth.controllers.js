@@ -9,8 +9,8 @@ import crypto from "crypto";
 const registerUser = asyncHandler(async (req, res) => {
   const { userName, email, phoneNumber, password } = req.body;
 
-  if (!userName || !email || !phoneNumber || !password) {
-    return res.status(400).json(new ApiResponse(400, "All fields are required"));
+  if (!userName || !password || (!email && !phoneNumber)) {
+    return res.status(400).json(new ApiResponse(400, "Username, password, and either email or phone number are required"));
   }
 
   const existingUser = await User.findOne({ email }).select("+password");
