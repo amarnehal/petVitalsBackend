@@ -250,7 +250,10 @@ const getAllUsersWithPets = asyncHandler(async (req, res) => {
 const registerPetWithOwner = asyncHandler(async (req, res) => {
   const { _id: vetId } = req.vet;
 
+  console.log("Vet Id is ",vetId);
+  
   if (!vetId) {
+     console.error("❌ No vetId in req.vet");
     return res.status(400).json(new ApiResponse(400, "Unauthorized request"));
   }
 
@@ -263,6 +266,8 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     petGender,
     petType,
   } = req.body;
+  console.log("🐾 registerPetWithOwner: req.body =", req.body);
+  console.log("🐾 req.vet =", req.vet);
 
   if (!userName || !petName || !petAge || !petGender || !petType) {
     return res
@@ -283,6 +288,7 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
 
   // If no owner exists, create a partial user
   if (!owner) {
+      console.log("🔍 Owner not found, creating a new one...");
     owner = await User.create({
       userName,
       email: email || undefined,
@@ -290,7 +296,7 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
       role: UserRolesEnum.USER,
       isEmailVerified: false,
     });
-
+  console.log("✅ Creating pet for ownerId:", owner._id);
     // Only send claim email if email is provided
     if (email) {
       const {
