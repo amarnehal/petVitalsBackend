@@ -12,7 +12,7 @@ const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app"
 
 ];
-app.options("/^\/splash.*$/", cors({
+app.options(/^\/splash.*$/, cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
@@ -21,7 +21,8 @@ app.options("/^\/splash.*$/", cors({
       return callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 }));
 
 // ✅ Middlewares to parse body BEFORE routes
