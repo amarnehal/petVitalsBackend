@@ -12,10 +12,8 @@ const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app"
 
 ];
-
-app.use(cors({
+app.options("*", cors({
   origin: (origin, callback) => {
-    console.log("🌐 Incoming origin:", origin); 
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -25,8 +23,6 @@ app.use(cors({
   },
   credentials: true
 }));
-
-app.options("*", cors());
 
 // ✅ Middlewares to parse body BEFORE routes
 app.use(express.json());

@@ -13,6 +13,9 @@ dotenv.config(
 
 const PORT = process.env.PORT || 3000;
 
+console.log("Process env Port ---",process.env.PORT);
+
+
 conectDb().then(()=>{
     app.listen(PORT,()=>{
         console.log("DB is connect successfully. App is running on Port - ",PORT );
