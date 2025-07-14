@@ -300,24 +300,15 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     return res.status(400).json(new ApiResponse(400, "Unauthorized request"));
   }
 
-  const {
-    userName,
-    email,
-    phoneNumber,
-    petName,
-    petAge,
-    petGender,
-    petType,
-  } = req.body;
+  const { userName, email, phoneNumber, petName, petAge, petGender, petType } =
+    req.body;
 
   console.log("🐾 registerPetWithOwner: req.body =", req.body);
   console.log("🐾 req.vet =", req.vet);
 
   // Minimal validation: userName and pet details required
   if (!userName || userName.trim() === "") {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, "Username is required"));
+    return res.status(400).json(new ApiResponse(400, "Username is required"));
   }
 
   if (!petName || !petAge || !petGender || !petType) {
@@ -341,20 +332,21 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
   if (!owner) {
     console.log("🔍 Owner not found, creating a new one...");
     owner = await User.create({
-  userName,
-  ...(email?.trim() && { email }),
-  ...(phoneNumber?.trim() && { phoneNumber }),
-  role: UserRolesEnum.USER,
-  isEmailVerified: false,
-  isClaimed: false,
-  createdByVet: true,
-});
+      userName,
+      ...(email?.trim() && { email }),
+      ...(phoneNumber?.trim() && { phoneNumber }),
+      role: UserRolesEnum.USER,
+      isEmailVerified: false,
+      isClaimed: false,
+      createdByVet: true,
+    });
 
     console.log("✅ Created partial owner with ID:", owner._id);
 
     // Only send claim email if email is provided
     if (email && email.trim() !== "") {
-      const { unhashedToken, hashedToken, tokenExpiry } = owner.generateTemporaryToken();
+      const { unhashedToken, hashedToken, tokenExpiry } =
+        owner.generateTemporaryToken();
 
       owner.emailVerificationToken = hashedToken;
       owner.emailVerificationExpiry = tokenExpiry;
@@ -384,10 +376,9 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     new ApiResponse(201, "Pet and owner registered successfully", {
       owner,
       newPet,
-    })
+    }),
   );
 });
-
 
 export {
   createVetInfo,
