@@ -77,8 +77,8 @@ phoneNumber: {
 
 userSchema.pre("save", async function (next) {
   // Normalize empty strings
-  if (this.email === "") this.email = undefined;
-  if (this.phoneNumber === "") this.phoneNumber = undefined;
+  if (!this.email) this.email = undefined;
+  if (!this.phoneNumber) this.phoneNumber = undefined;
 
   // Enforce password rule if claimed
   if (this.isClaimed && !this.password) {
