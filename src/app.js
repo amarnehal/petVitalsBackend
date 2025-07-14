@@ -12,18 +12,19 @@ const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app"
 
 ];
-app.options(/^\/splash.*$/, cors({
+app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+    console.log("Origin is ----",origin);
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
     } else {
-      return callback(new Error("Not allowed by CORS"));
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 }));
+app.options("*", cors());
 
 // ✅ Middlewares to parse body BEFORE routes
 app.use(express.json());
