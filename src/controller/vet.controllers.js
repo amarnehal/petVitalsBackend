@@ -300,49 +300,61 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     return res.status(400).json(new ApiResponse(400, "Unauthorized request"));
   }
 
-  const { userName, email, phoneNumber, petName, petAge, petGender, petType } =
-    req.body;
+  const {
+    userName,
+    email,
+    phoneNumber,
+    petName,
+    petAge,
+    petGender,
+    petType,
+  } = req.body;
 
   console.log("🐾 registerPetWithOwner: req.body =", req.body);
   console.log("🐾 req.vet =", req.vet);
 
-  if (!userName || !petName || !petAge || !petGender || !petType) {
+  // Minimal validation: userName and pet details required
+  if (!userName || userName.trim() === "") {
     return res
       .status(400)
-      .json(new ApiResponse(400, "Username and pet details are required"));
+      .json(new ApiResponse(400, "Username is required"));
+  }
+
+  if (!petName || !petAge || !petGender || !petType) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Pet details are required"));
   }
 
   let owner;
 
-  // Try finding existing owner by email or phoneNumber or userName
+  // Try to find existing owner by email, phoneNumber, or userName
   if (email && email.trim() !== "") {
-    owner = await User.findOne({ email });
+    owner = await User.findOne({ email: email.trim() });
   } else if (phoneNumber && phoneNumber.trim() !== "") {
-    owner = await User.findOne({ phoneNumber });
+    owner = await User.findOne({ phoneNumber: phoneNumber.trim() });
   } else {
-    owner = await User.findOne({ userName });
+    owner = await User.findOne({ userName: userName.trim() });
   }
 
-  // If no owner exists, create a partial user
+  // If owner not found, create a partial user
   if (!owner) {
     console.log("🔍 Owner not found, creating a new one...");
-
     owner = await User.create({
-      userName,
-      ...(email && email.trim() !== "" && { email }),
-      ...(phoneNumber && phoneNumber.trim() !== "" && { phoneNumber }),
+      userName: userName.trim(),
+      ...(email && email.trim() !== "" && { email: email.trim() }),
+      ...(phoneNumber && phoneNumber.trim() !== "" && { phoneNumber: phoneNumber.trim() }),
       role: UserRolesEnum.USER,
       isEmailVerified: false,
       isClaimed: false,
-      // Note: Password should be optional in your User schema for this to work
+      // password NOT set here to avoid validation errors
     });
 
-    console.log("✅ Created owner with id:", owner._id);
+    console.log("✅ Created partial owner with ID:", owner._id);
 
     // Only send claim email if email is provided
     if (email && email.trim() !== "") {
-      const { unhashedToken, hashedToken, tokenExpiry } =
-        owner.generateTemporaryToken();
+      const { unhashedToken, hashedToken, tokenExpiry } = owner.generateTemporaryToken();
 
       owner.emailVerificationToken = hashedToken;
       owner.emailVerificationExpiry = tokenExpiry;
@@ -359,7 +371,7 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     }
   }
 
-  // Proceed with pet creation
+  // Create new pet linked to owner
   const newPet = await Pet.create({
     petOwner: owner._id,
     name: petName,
@@ -372,9 +384,10 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     new ApiResponse(201, "Pet and owner registered successfully", {
       owner,
       newPet,
-    }),
+    })
   );
 });
+
 
 export {
   createVetInfo,
