@@ -5,6 +5,7 @@ import { VetInfo } from "../models/vetInfo.models.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { claimAccountEmail, sendEmail } from "../utils/mail.js";
+import { UserRolesEnum } from '../utils/constants.js';
 import crypto from "crypto";
 
 //////////////////// CREATE VET INFO ////////////////////
