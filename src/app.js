@@ -8,23 +8,22 @@ dotenv.config({ path: "./.env" });
 const app = express();
 
 const allowedOrigins = [
-  "http://localhost:5173",
+  "https://pet-vitals-frontend.vercel.app/",
   "https://pet-vitals-frontend.vercel.app"
 
 ];
-app.use(cors({
+app.options(/^\/splash.*$/, cors({
   origin: (origin, callback) => {
-    console.log("Origin is ----",origin);
-    
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      return callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true,
+  credentials:true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 }));
-app.options("*", cors());
 
 // ✅ Middlewares to parse body BEFORE routes
 app.use(express.json());
