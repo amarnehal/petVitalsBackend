@@ -25,6 +25,8 @@ app.use(cors({
   credentials: true
 }));
 
+app.options("*", cors());
+
 // ✅ Middlewares to parse body BEFORE routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
