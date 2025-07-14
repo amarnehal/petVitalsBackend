@@ -11,10 +11,10 @@ const userSchema = new Schema(
       required: [true, "UserName is required "],
       unique: [true, "UserName must be a unique value can include numbers"],
     },
-    email: {
+  email: {
   type: String,
   required: function () {
-    return !this.createdByVet && !this.phoneNumber;
+    return this.isClaimed && !this.phoneNumber;
   },
   unique: true,
   sparse: true,
@@ -22,7 +22,7 @@ const userSchema = new Schema(
 phoneNumber: {
   type: String,
   required: function () {
-    return !this.createdByVet && !this.email;
+    return this.isClaimed && !this.email;
   },
   unique: true,
   sparse: true,
@@ -75,17 +75,21 @@ phoneNumber: {
   { timestamps: true },
 );
 
-
-///// Password Encrypt /////////////////
-
 userSchema.pre("save", async function (next) {
+  // Normalize empty strings
+  if (this.email === "") this.email = undefined;
+  if (this.phoneNumber === "") this.phoneNumber = undefined;
+
+  // Enforce password rule if claimed
   if (this.isClaimed && !this.password) {
     return next(new Error("Password is required for claimed accounts."));
   }
 
-  if (!this.isModified("password")) return next();
+  // Hash password if modified
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
 
-  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 

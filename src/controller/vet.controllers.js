@@ -341,14 +341,14 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
   if (!owner) {
     console.log("🔍 Owner not found, creating a new one...");
     owner = await User.create({
-      userName: userName.trim(),
-      ...(email && email.trim() !== "" && { email: email.trim() }),
-      ...(phoneNumber && phoneNumber.trim() !== "" && { phoneNumber: phoneNumber.trim() }),
-      role: UserRolesEnum.USER,
-      isEmailVerified: false,
-      isClaimed: false,
-      // password NOT set here to avoid validation errors
-    });
+  userName,
+  ...(email?.trim() && { email }),
+  ...(phoneNumber?.trim() && { phoneNumber }),
+  role: UserRolesEnum.USER,
+  isEmailVerified: false,
+  isClaimed: false,
+  createdByVet: true,
+});
 
     console.log("✅ Created partial owner with ID:", owner._id);
 
