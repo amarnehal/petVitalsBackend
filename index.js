@@ -9,11 +9,10 @@ dotenv.config(
     }
 )
 
-
-
 const PORT = process.env.PORT || 3000;
 
-console.log("Process env Port ---",process.env.PORT);
+console.log("Port -",PORT);
+
 
 
 conectDb().then(()=>{

@@ -12,7 +12,7 @@ const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app"
 
 ];
-app.options("*", cors({
+app.options("/^\/splash.*$/", cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
