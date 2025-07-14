@@ -5,7 +5,7 @@ import { VetInfo } from "../models/vetInfo.models.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { claimAccountEmail, sendEmail } from "../utils/mail.js";
-import { UserRolesEnum } from '../utils/constants.js';
+import { UserRolesEnum } from "../utils/constants.js";
 import crypto from "crypto";
 
 //////////////////// CREATE VET INFO ////////////////////
@@ -18,17 +18,30 @@ const createVetInfo = asyncHandler(async (req, res) => {
 
   const existingVetInfo = await VetInfo.findOne({ userId: vetId });
   if (existingVetInfo) {
-    return res.status(409).json(new ApiResponse(409, "Vet info already exists"));
+    return res
+      .status(409)
+      .json(new ApiResponse(409, "Vet info already exists"));
   }
 
-  const { qualifications, experienceYears, availability, clinicAddress, bio } = req.body;
+  const { qualifications, experienceYears, availability, clinicAddress, bio } =
+    req.body;
 
-  if (!qualifications || !experienceYears || !availability || !clinicAddress || !bio) {
-    return res.status(400).json(new ApiResponse(400, "All fields are required"));
+  if (
+    !qualifications ||
+    !experienceYears ||
+    !availability ||
+    !clinicAddress ||
+    !bio
+  ) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "All fields are required"));
   }
 
   if (!Array.isArray(availability) || availability.length === 0) {
-    return res.status(400).json(new ApiResponse(400, "Availability must be a non-empty array"));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Availability must be a non-empty array"));
   }
 
   const availableDates = [];
@@ -43,7 +56,9 @@ const createVetInfo = asyncHandler(async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     if (entryDate < today) {
-      return res.status(400).json(new ApiResponse(400, "Availability date cannot be in the past"));
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "Availability date cannot be in the past"));
     }
 
     availableDates.push({ date: entryDate, slots });
@@ -58,7 +73,9 @@ const createVetInfo = asyncHandler(async (req, res) => {
     bio,
   });
 
-  return res.status(201).json(new ApiResponse(201, "Vet info created successfully", newVetInfo));
+  return res
+    .status(201)
+    .json(new ApiResponse(201, "Vet info created successfully", newVetInfo));
 });
 
 //////////////////// GET VET INFO BY ID ////////////////////
@@ -66,16 +83,25 @@ const vetInfoById = asyncHandler(async (req, res) => {
   const { id: vetId } = req.params;
 
   if (!vetId) {
-    return res.status(400).json(new ApiResponse(400, "Invalid or no vet id received"));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Invalid or no vet id received"));
   }
 
-  const existingVetInfo = await VetInfo.findOne({ userId: vetId }).populate("userId", "userName email");
+  const existingVetInfo = await VetInfo.findOne({ userId: vetId }).populate(
+    "userId",
+    "userName email",
+  );
 
   if (!existingVetInfo) {
     return res.status(404).json(new ApiResponse(404, "Vet info doesn't exist"));
   }
 
-  return res.status(200).json(new ApiResponse(200, "Vet info fetched successfully", existingVetInfo));
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, "Vet info fetched successfully", existingVetInfo),
+    );
 });
 
 //////////////////// GET VET INFO FOR LOGGED IN VET ////////////////////
@@ -86,13 +112,18 @@ const vetInfo = asyncHandler(async (req, res) => {
     return res.status(400).json(new ApiResponse(400, "Failed to get vet info"));
   }
 
-  const vetData = await VetInfo.findOne({ userId: vetId }).populate("userId", "userName email phoneNumber");
+  const vetData = await VetInfo.findOne({ userId: vetId }).populate(
+    "userId",
+    "userName email phoneNumber",
+  );
 
   if (!vetData) {
     return res.status(404).json(new ApiResponse(404, "Vet info doesn't exist"));
   }
 
-  return res.status(200).json(new ApiResponse(200, "Vet info fetched successfully", vetData));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Vet info fetched successfully", vetData));
 });
 
 //////////////////// UPDATE VET (USER) INFO ////////////////////
@@ -117,7 +148,9 @@ const updateVet = asyncHandler(async (req, res) => {
 
   await vet.save();
 
-  return res.status(200).json(new ApiResponse(200, "Vet profile updated successfully", vet));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Vet profile updated successfully", vet));
 });
 
 //////////////////// UPDATE VET INFO ////////////////////
@@ -130,10 +163,13 @@ const updateVetInfoProfile = asyncHandler(async (req, res) => {
 
   const vetInfo = await VetInfo.findOne({ userId: vetId });
   if (!vetInfo) {
-    return res.status(404).json(new ApiResponse(404, "No vet info found to update"));
+    return res
+      .status(404)
+      .json(new ApiResponse(404, "No vet info found to update"));
   }
 
-  const { qualifications, experienceYears, availability, clinicAddress, bio } = req.body;
+  const { qualifications, experienceYears, availability, clinicAddress, bio } =
+    req.body;
 
   if (qualifications) vetInfo.qualifications = qualifications;
   if (experienceYears) vetInfo.experienceYears = experienceYears;
@@ -158,7 +194,9 @@ const updateVetInfoProfile = asyncHandler(async (req, res) => {
 
   await vetInfo.save();
 
-  return res.status(200).json(new ApiResponse(200, "Vet info updated successfully", vetInfo));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Vet info updated successfully", vetInfo));
 });
 
 //////////////////// REMOVE VET ACCOUNT ////////////////////
@@ -172,7 +210,9 @@ const removeVet = asyncHandler(async (req, res) => {
   await VetInfo.findOneAndDelete({ userId: vetId });
   await User.findByIdAndDelete(vetId);
 
-  return res.status(200).json(new ApiResponse(200, "Vet account has been removed successfully"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Vet account has been removed successfully"));
 });
 
 //////////////////// GET ALL USERS WITH PETS ////////////////////
@@ -194,7 +234,7 @@ const getAllUsersWithPets = asyncHandler(async (req, res) => {
           { "owner.userName": { $regex: search, $options: "i" } },
           { "owner.email": { $regex: search, $options: "i" } },
           { "owner.phoneNumber": { $regex: search, $options: "i" } },
-          { "name": { $regex: search, $options: "i" } },
+          { name: { $regex: search, $options: "i" } },
         ],
       }
     : {};
@@ -240,33 +280,29 @@ const getAllUsersWithPets = asyncHandler(async (req, res) => {
   const petDetails = results[0].data;
   const total = results[0].totalCount[0]?.count || 0;
 
-  return res.status(200).json(new ApiResponse(200, "All pets with users fetched successfully", {
-    totalPetCount: total,
-    currentPage: page,
-    totalPages: Math.ceil(total / limit),
-    petDetails,
-  }));
+  return res.status(200).json(
+    new ApiResponse(200, "All pets with users fetched successfully", {
+      totalPetCount: total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      petDetails,
+    }),
+  );
 });
 
 const registerPetWithOwner = asyncHandler(async (req, res) => {
   const { _id: vetId } = req.vet;
 
-  console.log("Vet Id is ",vetId);
-  
+  console.log("Vet Id is ", vetId);
+
   if (!vetId) {
-     console.error("❌ No vetId in req.vet");
+    console.error("❌ No vetId in req.vet");
     return res.status(400).json(new ApiResponse(400, "Unauthorized request"));
   }
 
-  const {
-    userName,
-    email,
-    phoneNumber,
-    petName,
-    petAge,
-    petGender,
-    petType,
-  } = req.body;
+  const { userName, email, phoneNumber, petName, petAge, petGender, petType } =
+    req.body;
+
   console.log("🐾 registerPetWithOwner: req.body =", req.body);
   console.log("🐾 req.vet =", req.vet);
 
@@ -279,9 +315,9 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
   let owner;
 
   // Try finding existing owner by email or phoneNumber or userName
-  if (email) {
+  if (email && email.trim() !== "") {
     owner = await User.findOne({ email });
-  } else if (phoneNumber) {
+  } else if (phoneNumber && phoneNumber.trim() !== "") {
     owner = await User.findOne({ phoneNumber });
   } else {
     owner = await User.findOne({ userName });
@@ -289,22 +325,24 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
 
   // If no owner exists, create a partial user
   if (!owner) {
-      console.log("🔍 Owner not found, creating a new one...");
+    console.log("🔍 Owner not found, creating a new one...");
+
     owner = await User.create({
       userName,
-      email: email || undefined,
-      phoneNumber: phoneNumber || undefined,
+      ...(email && email.trim() !== "" && { email }),
+      ...(phoneNumber && phoneNumber.trim() !== "" && { phoneNumber }),
       role: UserRolesEnum.USER,
       isEmailVerified: false,
+      isClaimed: false,
+      // Note: Password should be optional in your User schema for this to work
     });
-  console.log("✅ Creating pet for ownerId:", owner._id);
+
+    console.log("✅ Created owner with id:", owner._id);
+
     // Only send claim email if email is provided
-    if (email) {
-      const {
-        unhashedToken,
-        hashedToken,
-        tokenExpiry,
-      } = owner.generateTemporaryToken();
+    if (email && email.trim() !== "") {
+      const { unhashedToken, hashedToken, tokenExpiry } =
+        owner.generateTemporaryToken();
 
       owner.emailVerificationToken = hashedToken;
       owner.emailVerificationExpiry = tokenExpiry;
@@ -334,19 +372,17 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     new ApiResponse(201, "Pet and owner registered successfully", {
       owner,
       newPet,
-    })
+    }),
   );
 });
 
-
-export { 
-  createVetInfo, 
-  vetInfoById, 
-  vetInfo, 
-  updateVet, 
-  updateVetInfoProfile, 
-  removeVet, 
-  getAllUsersWithPets, 
-  registerPetWithOwner 
+export {
+  createVetInfo,
+  vetInfoById,
+  vetInfo,
+  updateVet,
+  updateVetInfoProfile,
+  removeVet,
+  getAllUsersWithPets,
+  registerPetWithOwner,
 };
-
