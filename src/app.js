@@ -10,20 +10,44 @@ const app = express();
 const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app/",
   "https://pet-vitals-frontend.vercel.app"
-
 ];
-app.options(/^\/splash.*$/, cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials:true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-}));
+
+const corsOptionsDelegate = (origin, callback) => {
+  console.log("CORS request from origin:", origin); // ✅ log the incoming origin
+
+  if (!origin) {
+    console.log("No origin, allowing request");
+    return callback(null, true);
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    console.log("Origin allowed:", origin);
+    return callback(null, true);
+  } else {
+    console.log("Origin not allowed:", origin);
+    return callback(new Error("Not allowed by CORS"));
+  }
+};
+const corsOptions = {
+  origin: corsOptionsDelegate,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+  
+};
+console.log("Cors Options here-----",corsOptions);
+
+
+app.use(cors(corsOptions));
+
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    console.log("----- [RESPONSE HEADERS] -----");
+    console.log("Access-Control-Allow-Origin:", res.get("Access-Control-Allow-Origin"));
+    console.log("Access-Control-Allow-Credentials:", res.get("Access-Control-Allow-Credentials"));
+  });
+  next();
+})
 
 // ✅ Middlewares to parse body BEFORE routes
 app.use(express.json());
