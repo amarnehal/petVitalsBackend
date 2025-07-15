@@ -293,48 +293,53 @@ const getAllUsersWithPets = asyncHandler(async (req, res) => {
 const registerPetWithOwner = asyncHandler(async (req, res) => {
   const { _id: vetId } = req.vet;
 
-  console.log("Vet Id is ", vetId);
-
   if (!vetId) {
     console.error("❌ No vetId in req.vet");
     return res.status(400).json(new ApiResponse(400, "Unauthorized request"));
   }
 
-  const { userName, email, phoneNumber, petName, petAge, petGender, petType } =
-    req.body;
+  const { userName, email, phoneNumber, petName, petAge, petGender, petType } = req.body;
 
-  console.log("🐾 registerPetWithOwner: req.body =", req.body);
-  console.log("🐾 req.vet =", req.vet);
-
-  // Minimal validation: userName and pet details required
+  // Validate required fields
   if (!userName || userName.trim() === "") {
     return res.status(400).json(new ApiResponse(400, "Username is required"));
   }
-
   if (!petName || !petAge || !petGender || !petType) {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, "Pet details are required"));
+    return res.status(400).json(new ApiResponse(400, "Pet details are required"));
   }
 
+  // Clean and normalize input
+  const cleanedUserName = typeof userName === "string" ? userName.trim() : null;
+  const cleanedEmail = typeof email === "string" ? email.trim() : null;
+  const cleanedPhone = typeof phoneNumber === "string" ? phoneNumber.trim() : null;
+
+  // Uniqueness checks
+  const existingByUserName = await User.findOne({ userName: cleanedUserName });
+  if (existingByUserName) {
+    return res.status(400).json(new ApiResponse(400, "Username already exists"));
+  }
+
+  if (cleanedEmail) {
+    const existingByEmail = await User.findOne({ email: cleanedEmail });
+    if (existingByEmail) {
+      return res.status(400).json(new ApiResponse(400, "Email already exists"));
+    }
+  }
+
+  if (cleanedPhone) {
+    const existingByPhone = await User.findOne({ phoneNumber: cleanedPhone });
+    if (existingByPhone) {
+      return res.status(400).json(new ApiResponse(400, "Phone number already exists"));
+    }
+  }
+
+  // Create partial user (pet owner)
   let owner;
-
-  // Try to find existing owner by email, phoneNumber, or userName
-  if (email && email.trim() !== "") {
-    owner = await User.findOne({ email: email.trim() });
-  } else if (phoneNumber && phoneNumber.trim() !== "") {
-    owner = await User.findOne({ phoneNumber: phoneNumber.trim() });
-  } else {
-    owner = await User.findOne({ userName: userName.trim() });
-  }
-
-  // If owner not found, create a partial user
-  if (!owner) {
-    console.log("🔍 Owner not found, creating a new one...");
+  try {
     owner = await User.create({
-      userName,
-      ...(email?.trim() && { email }),
-      ...(phoneNumber?.trim() && { phoneNumber }),
+      userName: cleanedUserName,
+      ...(cleanedEmail && { email: cleanedEmail }),
+      ...(cleanedPhone && { phoneNumber: cleanedPhone }),
       role: UserRolesEnum.USER,
       isEmailVerified: false,
       isClaimed: false,
@@ -342,28 +347,31 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     });
 
     console.log("✅ Created partial owner with ID:", owner._id);
-
-    // Only send claim email if email is provided
-    if (email && email.trim() !== "") {
-      const { unhashedToken, hashedToken, tokenExpiry } =
-        owner.generateTemporaryToken();
-
-      owner.emailVerificationToken = hashedToken;
-      owner.emailVerificationExpiry = tokenExpiry;
-      await owner.save();
-
-      const claimLink = `${process.env.BASE_URL}/api/v1/user/claim-account/${unhashedToken}`;
-      const emailContent = claimAccountEmail(owner.userName, claimLink);
-
-      await sendEmail({
-        email: owner.email,
-        subject: "Claim Your Account",
-        mailGenContent: emailContent,
-      });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json(new ApiResponse(400, "Duplicate entry", { error: err.keyValue }));
     }
+    throw err; // rethrow unexpected errors
   }
 
-  // Create new pet linked to owner
+  // Send claim account email if email is available
+  if (cleanedEmail) {
+    const { unhashedToken, hashedToken, tokenExpiry } = owner.generateTemporaryToken();
+    owner.emailVerificationToken = hashedToken;
+    owner.emailVerificationExpiry = tokenExpiry;
+    await owner.save();
+
+    const claimLink = `${process.env.BASE_URL}/api/v1/user/claim-account/${unhashedToken}`;
+    const emailContent = claimAccountEmail(owner.userName, claimLink);
+
+    await sendEmail({
+      email: owner.email,
+      subject: "Claim Your Account",
+      mailGenContent: emailContent,
+    });
+  }
+
+  // Create pet record
   const newPet = await Pet.create({
     petOwner: owner._id,
     name: petName,
@@ -376,9 +384,10 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     new ApiResponse(201, "Pet and owner registered successfully", {
       owner,
       newPet,
-    }),
+    })
   );
 });
+
 
 export {
   createVetInfo,
