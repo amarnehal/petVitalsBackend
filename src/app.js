@@ -9,12 +9,12 @@ const app = express();
 
 const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app",
-  "https://pet-vitals-frontend.vercel.app/",
   "http://localhost:5173",
 ];
 
 const corsOptionsDelegate = (origin, callback) => {
   console.log("CORS request from origin:", origin); // ✅ log the incoming origin
+  console.log("🌍 Origin:", origin || "(no origin header)");
 
   if (!origin) {
     console.log("No origin, allowing request");
@@ -25,7 +25,7 @@ const corsOptionsDelegate = (origin, callback) => {
     console.log("Origin allowed:", origin);
     return callback(null, true);
   } else {
-    console.log("Origin not allowed:", origin);
+    console.log("❌ Origin not allowed : ", origin);
     return callback(new Error("Not allowed by CORS"));
   }
 };
