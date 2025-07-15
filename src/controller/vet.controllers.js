@@ -300,63 +300,69 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
 
   const { userName, email, phoneNumber, petName, petAge, petGender, petType } = req.body;
 
-  // Validate required fields
+  console.log("🐾 registerPetWithOwner: req.body =", req.body);
+  console.log("🐾 req.vet =", req.vet);
+
+  // Minimal validation
   if (!userName || userName.trim() === "") {
     return res.status(400).json(new ApiResponse(400, "Username is required"));
   }
+
   if (!petName || !petAge || !petGender || !petType) {
-    return res.status(400).json(new ApiResponse(400, "Pet details are required"));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Pet details are required"));
   }
 
-  // Clean and normalize input
-  const cleanedUserName = typeof userName === "string" ? userName.trim() : null;
   const cleanedEmail = typeof email === "string" ? email.trim() : null;
   const cleanedPhone = typeof phoneNumber === "string" ? phoneNumber.trim() : null;
+  const cleanedUserName = typeof userName === "string" ? userName.trim() : null;
 
-  // Uniqueness checks
-  const existingByUserName = await User.findOne({ userName: cleanedUserName });
-  if (existingByUserName) {
-    return res.status(400).json(new ApiResponse(400, "Username already exists"));
-  }
+  // Build query to check for existing user using OR logic
+  const existingOwnerQuery = [];
 
   if (cleanedEmail) {
-    const existingByEmail = await User.findOne({ email: cleanedEmail });
-    if (existingByEmail) {
-      return res.status(400).json(new ApiResponse(400, "Email already exists"));
-    }
+    existingOwnerQuery.push({ email: cleanedEmail });
   }
-
   if (cleanedPhone) {
-    const existingByPhone = await User.findOne({ phoneNumber: cleanedPhone });
-    if (existingByPhone) {
-      return res.status(400).json(new ApiResponse(400, "Phone number already exists"));
-    }
+    existingOwnerQuery.push({ phoneNumber: cleanedPhone });
+  }
+  if (cleanedUserName) {
+    existingOwnerQuery.push({ userName: cleanedUserName });
   }
 
-  // Create partial user (pet owner)
-  let owner;
-  try {
-    owner = await User.create({
-      userName: cleanedUserName,
-      ...(cleanedEmail && { email: cleanedEmail }),
-      ...(cleanedPhone && { phoneNumber: cleanedPhone }),
-      role: UserRolesEnum.USER,
-      isEmailVerified: false,
-      isClaimed: false,
-      createdByVet: true,
-    });
-
-    console.log("✅ Created partial owner with ID:", owner._id);
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json(new ApiResponse(400, "Duplicate entry", { error: err.keyValue }));
-    }
-    throw err; // rethrow unexpected errors
+  if (existingOwnerQuery.length === 0) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "At least one identifier is required (email, phone number, or username)"));
   }
 
-  // Send claim account email if email is available
+  let owner = await User.findOne({ $or: existingOwnerQuery });
+
+  if (owner) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Pet Owner already exists with same email, phone number, or username"));
+  }
+
+  // Create new partial owner
+  owner = await User.create({
+    userName: cleanedUserName,
+    ...(cleanedEmail && { email: cleanedEmail }),
+    ...(cleanedPhone && { phoneNumber: cleanedPhone }),
+    role: UserRolesEnum.USER,
+    isEmailVerified: false,
+    isClaimed: false,
+    createdByVet: true,
+  });
+
+  console.log("✅ Created partial owner with ID:", owner._id);
+
+  // Optional: send claim email if email exists
   if (cleanedEmail) {
-    const { unhashedToken, hashedToken, tokenExpiry } = owner.generateTemporaryToken();
+    const { unhashedToken, hashedToken, tokenExpiry } =
+      owner.generateTemporaryToken();
+
     owner.emailVerificationToken = hashedToken;
     owner.emailVerificationExpiry = tokenExpiry;
     await owner.save();
@@ -371,7 +377,7 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create pet record
+  // Create pet
   const newPet = await Pet.create({
     petOwner: owner._id,
     name: petName,
@@ -384,7 +390,7 @@ const registerPetWithOwner = asyncHandler(async (req, res) => {
     new ApiResponse(201, "Pet and owner registered successfully", {
       owner,
       newPet,
-    })
+    }),
   );
 });
 
