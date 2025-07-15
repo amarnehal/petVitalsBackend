@@ -11,7 +11,7 @@ const isUserLoggedIn = asyncHandler(async(req,res,next)=>{
     
    try {
     
-    const {token} = req.cookies || "";
+   const token = req.cookies?.token;
     /// check if token is recieved or not //
     if(!token){
       return res.status(400).json(new ApiResponse(

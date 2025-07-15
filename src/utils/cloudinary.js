@@ -42,31 +42,29 @@ const uploadOnCloudinary = async (localFilePath) => {
 
 const updateOnCloudinary = async (localFilePath, publicId) => {
   try {
-    if (!localFilePath) {
-      throw new ApiError("No loacal path found", 400, error);
+    if (!localFilePath || !publicId) {
+      throw new ApiError("Missing file path or publicId", 400);
     }
-    if (!publicId) {
-      throw new ApiError("No public Id found", 400, error);
-    }
+
     const updatedResponse = await cloudinary.uploader.upload(localFilePath, {
       public_id: publicId,
       overwrite: true,
       invalidate: true,
     });
-    console.log("Updated response from clodinary");
-    fs.unlinkSync(localFilePath);
-    console.log("Files successfully removed from local path after updation");
+
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
 
     return updatedResponse;
-  } catch (error) {
-    fs.unlinkSync(localFilePath);
-    throw new ApiError(
-      "Error occured while attempting to update files on cloudinry",
-      400,
-      error,
-    );
+  } catch (err) {
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
+    throw new ApiError("Cloudinary update failed", 400, err);
   }
 };
+
 
 const deleteFromCloudinary = async (publicIds) => {
   try {
