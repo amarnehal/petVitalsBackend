@@ -12,6 +12,10 @@ const isUserLoggedIn = asyncHandler(async(req,res,next)=>{
    try {
     
    const token = req.cookies?.token;
+   console.log("req.cokkies in auth middleware ---",res.cookies);
+   console.log("😂😂😂,here's the token",token);
+   
+   
     /// check if token is recieved or not //
     if(!token){
       return res.status(400).json(new ApiResponse(
