@@ -13,17 +13,10 @@ const userSchema = new Schema(
     },
   email: {
   type: String,
-  required: function () {
-    return this.isClaimed && !this.phoneNumber;
-  },
-  unique: true,
   sparse: true,
 },
 phoneNumber: {
   type: String,
-  required: function () {
-    return this.isClaimed && !this.email;
-  },
   unique: true,
   sparse: true,
 },
