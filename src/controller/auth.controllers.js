@@ -76,10 +76,10 @@ const logIn = asyncHandler(async (req, res) => {
   }
 
   const accessToken = existingUser.generateAccessToken();
- res.cookie("token", accessToken, {
+res.cookie("token", accessToken, {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',    // true on Render
-  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',  // None for cross-origin
+  secure: true, // Always true on HTTPS hosting
+  sameSite: "None", // Required for cross-origin
   maxAge: 24 * 60 * 60 * 1000,
 });
 

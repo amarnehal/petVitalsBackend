@@ -8,8 +8,9 @@ dotenv.config({ path: "./.env" });
 const app = express();
 
 const allowedOrigins = [
+  "https://pet-vitals-frontend.vercel.app",
   "https://pet-vitals-frontend.vercel.app/",
-  "https://pet-vitals-frontend.vercel.app"
+  "http://localhost:5173",
 ];
 
 const corsOptionsDelegate = (origin, callback) => {

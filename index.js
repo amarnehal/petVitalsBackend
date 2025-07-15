@@ -11,9 +11,6 @@ dotenv.config(
 
 const PORT = process.env.PORT || 3000;
 
-console.log("Port -",PORT);
-
-
 
 conectDb().then(()=>{
     app.listen(PORT,()=>{
