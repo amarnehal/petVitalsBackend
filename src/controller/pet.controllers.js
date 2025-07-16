@@ -347,41 +347,39 @@ const removePet = asyncHandler(async (req, res) => {
   if (!pet)
     return res.status(404).json(new ApiResponse(404, "Pet not found", false));
 
+  const ownerId = pet.petOwner;
   const medicalRecord = await PetMedicalRecord.findOne({ petId });
 
-  const imagesToDelete = [];
-  if (medicalRecord) {
-    ["xRay", "reports", "prescription"].forEach((key) => {
-      const images = medicalRecord[key] || [];
-      images.forEach((img) => imagesToDelete.push(img.cloudinaryImageId));
-    });
+  try {
+    if (medicalRecord) {
+      const imagesToDelete = [];
+      ["xRay", "reports", "prescription"].forEach((key) => {
+        const images = medicalRecord[key] || [];
+        images.forEach((img) => imagesToDelete.push(img.cloudinaryImageId));
+      });
 
-    if (imagesToDelete.length > 0) {
-      try {
+      if (imagesToDelete.length > 0) {
         await deleteFromCloudinary(imagesToDelete);
-      } catch (cloudErr) {
-        console.error("Cloudinary Deletion Error:", cloudErr);
-        // Optionally: continue even if image deletion fails
+      }
+      await medicalRecord.deleteOne();
+    }
+
+    await pet.deleteOne();
+
+    const remainingPets = await Pet.find({ petOwner: ownerId }).lean();
+
+    if (remainingPets.length === 0) {
+      const owner = await User.findById(ownerId);
+      if (owner && !owner.isClaimed && owner.createdByVet) {
+        await User.findByIdAndDelete(owner._id);
       }
     }
-    await medicalRecord.deleteOne();
+  } catch (error) {
+    console.error("Error during removal process:", error);
+    return res.status(500).json(new ApiResponse(500, "Failed to remove pet and associated data", false));
   }
 
-  await pet.deleteOne();
-
-  // Optional cleanup: delete owner if no pets and unclaimed
-   const remainingPets = await Pet.find({ petOwner: ownerId }).lean();
-
-  if (remainingPets.length === 0) {
-    const owner = await User.findById(ownerId);
-    if (owner && !owner.isClaimed && owner.createdByVet) {
-      await User.findByIdAndDelete(owner._id);
-    }
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Pet and medical record removed"));
+  return res.status(200).json(new ApiResponse(200, "Pet and medical record removed"));
 });
 
 export {
