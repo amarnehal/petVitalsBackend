@@ -5,6 +5,7 @@ import { User } from "../models/user.models.js";
 import { sendEmail, emailVerificationMailGenContent, forgotPasswordContent } from "../utils/mail.js";
 import crypto from "crypto";
 
+
 // Register User
 const registerUser = asyncHandler(async (req, res) => {
   const { userName, email, phoneNumber, password } = req.body;
@@ -57,6 +58,8 @@ const verifyUser = asyncHandler(async (req, res) => {
 // Login User
 const logIn = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  console.log("process.env", process.env.NODE_ENV);
+  
   if (!email || !password) {
     return res.status(400).json(new ApiResponse(400, "Please provide email and password"));
   }
@@ -78,9 +81,10 @@ const logIn = asyncHandler(async (req, res) => {
   const accessToken = existingUser.generateAccessToken();
 res.cookie("token", accessToken, {
   httpOnly: true,
-  secure: true, // Always true on HTTPS hosting
-  sameSite: "None", // Required for cross-origin
-  maxAge: 24 * 60 * 60 * 1000,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "None",
+  path: "/", // cookie is accessible to all routes
+  maxAge: 24 * 60 * 60 * 1000, // 1 day
 });
 
   const safeUser = {
