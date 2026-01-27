@@ -11,7 +11,7 @@ const isUserLoggedIn = asyncHandler(async(req,res,next)=>{
     
    try {
     
-   const token = req.cookies?.token;
+   const token = req.cookies?.token || req.headers.authorization?.replace("Bearer ","");
    console.log("req.cokkies in auth middleware ---",req.cookies);
    console.log("😂😂😂,here's the token",token);
    
@@ -33,6 +33,7 @@ const isUserLoggedIn = asyncHandler(async(req,res,next)=>{
             false,
         ))
       }
+      console.log("Decoded token 👌👌",decodedToken)
       /// create a new req key with user info ///
       req.user  = decodedToken;
       

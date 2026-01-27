@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { User } from "../models/user.models.js";
 import { sendEmail, emailVerificationMailGenContent, forgotPasswordContent } from "../utils/mail.js";
 import crypto from "crypto";
+import { log } from "console";
 
 
 // Register User
@@ -79,6 +80,8 @@ const logIn = asyncHandler(async (req, res) => {
   }
 
   const accessToken = existingUser.generateAccessToken();
+  console.log("Access Token is generated -----",accessToken)
+
 res.cookie("token", accessToken, {
   httpOnly: true,
   secure: true,
@@ -94,7 +97,7 @@ res.cookie("token", accessToken, {
     role:existingUser.role,
   };
 
-  return res.status(200).json(new ApiResponse(200, "Login successful", {  user: safeUser }));
+  return res.status(200).json(new ApiResponse(200, "Login successful", {  user: safeUser, accessToken }));
 });
 
 // Get User Profile
