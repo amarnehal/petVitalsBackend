@@ -12,7 +12,7 @@ const isUserLoggedIn = asyncHandler(async(req,res,next)=>{
    try {
     
    const token = req.cookies?.token;
-   console.log("req.cokkies in auth middleware ---",res.cookies);
+   console.log("req.cokkies in auth middleware ---",req.cookies);
    console.log("😂😂😂,here's the token",token);
    
    
@@ -37,12 +37,12 @@ const isUserLoggedIn = asyncHandler(async(req,res,next)=>{
       req.user  = decodedToken;
       
       
-      
+      next();
     
    } catch (error) {
     return res.status(500).json(new ApiResponse(500, "Internal server error", false));
    }
-   next();
+   
 })
 
 /////////// pet Owner authentication //////

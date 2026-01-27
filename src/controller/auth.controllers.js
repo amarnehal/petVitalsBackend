@@ -81,7 +81,7 @@ const logIn = asyncHandler(async (req, res) => {
   const accessToken = existingUser.generateAccessToken();
 res.cookie("token", accessToken, {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: true,
   sameSite: "None",
   path: "/", // cookie is accessible to all routes
   maxAge: 24 * 60 * 60 * 1000, // 1 day
@@ -94,7 +94,7 @@ res.cookie("token", accessToken, {
     role:existingUser.role,
   };
 
-  return res.status(200).json(new ApiResponse(200, "Login successful", { accessToken, user: safeUser }));
+  return res.status(200).json(new ApiResponse(200, "Login successful", {  user: safeUser }));
 });
 
 // Get User Profile
