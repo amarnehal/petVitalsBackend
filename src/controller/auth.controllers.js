@@ -85,7 +85,7 @@ const logIn = asyncHandler(async (req, res) => {
 res.cookie("token", accessToken, {
   httpOnly: true,
   secure: true,
-  sameSite: "None",
+  sameSite: "none",
   path: "/", // cookie is accessible to all routes
   maxAge: 24 * 60 * 60 * 1000, // 1 day
 });
