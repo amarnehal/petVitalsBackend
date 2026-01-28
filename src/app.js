@@ -10,6 +10,7 @@ const app = express();
 const allowedOrigins = [
   "https://pet-vitals-frontend.vercel.app",
   "https://pet-vitals-frontend-git-main-amarveer-singhs-projects.vercel.app",
+  "pet-vitals-frontend-kkssf8oye-amarveer-singhs-projects.vercel.app",
   "http://localhost:5173",
 ];
 
