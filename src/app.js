@@ -9,7 +9,7 @@ const app = express();
 
 const allowedOrigins = [
   "https://sunamvet.shop",      // Your new primary custom domain
-  "https://sunamvet.shop",  // The www version of your domain
+  "https://www.sunamvet.shop",  // The www version of your domain
   "https://pet-vitals-frontend.vercel.app",
   "https://pet-vitals-frontend-git-main-amarveer-singhs-projects.vercel.app",
   "pet-vitals-frontend-kkssf8oye-amarveer-singhs-projects.vercel.app",
