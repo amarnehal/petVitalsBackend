@@ -1,5 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/api-response.js";
+import fs from "fs";
 import { Pet } from "../models/pet.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { PetMedicalRecord } from "../models/petHistory.models.js";
