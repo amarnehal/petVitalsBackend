@@ -2,7 +2,6 @@ import { v2 as cloudinary } from "cloudinary";
 import { ApiError } from "../utils/api-error.js";
 import fs from "fs";
 import dotenv from "dotenv";
-import { error, log } from "console";
 
 dotenv.config({
   path: "./.env",
@@ -14,28 +13,42 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+/**
+ * Safely removes a file from local temp storage using non-blocking promises
+ */
+const safelyDeleteLocalFile = async (localFilePath) => {
+  try {
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      await fs.promises.unlink(localFilePath);
+    }
+  } catch (err) {
+    console.error(`Failed to clean up local file at ${localFilePath}:`, err.message);
+  }
+};
+
 const uploadOnCloudinary = async (localFilePath) => {
   try {
     if (!localFilePath) {
-      throw new ApiError("No loacal path found", 400, error);
+      throw new ApiError("No local path found", 400);
     }
+
+    console.time(`Cloudinary Upload Time -> ${localFilePath}`);
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
     });
-    console.log("File uploaded successfully on cloud");
-
-    console.log("Cloudinary response", response);
-    fs.unlinkSync(localFilePath);
-    console.log("Files unlinked successfully");
+    console.timeEnd(`Cloudinary Upload Time -> ${localFilePath}`);
+    
+    // Clean up local file in the background asynchronously
+    await safelyDeleteLocalFile(localFilePath);
 
     return response;
   } catch (error) {
-    //// delete temp file from local storage if some error occured//
-    fs.unlinkSync(localFilePath);
+    // Ensure clean up happens even if the cloud provider upload fails
+    await safelyDeleteLocalFile(localFilePath);
     throw new ApiError(
-      "Error occured while uploading to cloudinry",
+      "Error occurred while uploading to Cloudinary",
       400,
-      error,
+      error?.message || error
     );
   }
 };
@@ -52,19 +65,13 @@ const updateOnCloudinary = async (localFilePath, publicId) => {
       invalidate: true,
     });
 
-    if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
-    }
-
+    await safelyDeleteLocalFile(localFilePath);
     return updatedResponse;
   } catch (err) {
-    if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
-    }
-    throw new ApiError("Cloudinary update failed", 400, err);
+    await safelyDeleteLocalFile(localFilePath);
+    throw new ApiError("Cloudinary update failed", 400, err?.message || err);
   }
 };
-
 
 const deleteFromCloudinary = async (publicIds) => {
   try {
@@ -72,6 +79,7 @@ const deleteFromCloudinary = async (publicIds) => {
       throw new ApiError("No publicIds received. Failed to perform delete action", 400);
     }
 
+    // Process deletions in parallel
     const deleteResults = await Promise.all(
       publicIds.map(async (id) => {
         const result = await cloudinary.uploader.destroy(id);
@@ -82,11 +90,9 @@ const deleteFromCloudinary = async (publicIds) => {
       })
     );
 
-    console.log("Cloudinary images deleted:", deleteResults);
     return deleteResults;
-
   } catch (error) {
-    console.error("Cloudinary Deletion Error:", error); // 
+    console.error("Cloudinary Deletion Error:", error); 
     throw new ApiError(
       "Failed to delete one or more images from Cloudinary",
       500,
@@ -94,4 +100,5 @@ const deleteFromCloudinary = async (publicIds) => {
     );
   }
 };
-export { uploadOnCloudinary, updateOnCloudinary,deleteFromCloudinary };
+
+export { uploadOnCloudinary, updateOnCloudinary, deleteFromCloudinary };

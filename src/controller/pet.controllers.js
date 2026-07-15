@@ -115,6 +115,21 @@ const updatePetInfo = asyncHandler(async (req, res) => {
 });
 
 // Create Pet Medical Record
+/**
+ * Helper utility to safely wipe uploaded temp files if validation fails
+ */
+const cleanTempFiles = async (filesArray) => {
+  for (const file of filesArray) {
+    if (file && file.path && fs.existsSync(file.path)) {
+      try {
+        await fs.promises.unlink(file.path);
+      } catch (err) {
+        console.error(`Failed to clean file ${file.path}:`, err.message);
+      }
+    }
+  }
+};
+
 const createPetMedicalRecord = asyncHandler(async (req, res) => {
   const { _id: petId } = req.pet;
   let {
@@ -129,101 +144,94 @@ const createPetMedicalRecord = asyncHandler(async (req, res) => {
   const xrayFiles = req.files["XRay"] || [];
   const reports = req.files["Reports"] || [];
   const prescription = req.files["Prescription"] || [];
+  const allIncomingFiles = [...xrayFiles, ...reports, ...prescription];
 
+  // 1. Immediate Field and File Validations (Prior to processing anything)
   if (!petId) {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, "No petId provided", false));
+    await cleanTempFiles(allIncomingFiles);
+    return res.status(400).json(new ApiResponse(400, "No petId provided", false));
   }
 
-  const recordExists = await PetMedicalRecord.findOne({ petId });
-  if (recordExists) {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, "Medical record already exists", false));
-  }
-
-  // Normalize arrays
-  const diseaseArray = disease
-    ? Array.isArray(disease)
-      ? disease
-      : [disease]
-    : [];
-  const allergiesArray = allergies
-    ? Array.isArray(allergies)
-      ? allergies
-      : [allergies]
-    : [];
+  const diseaseArray = disease ? (Array.isArray(disease) ? disease : [disease]) : [];
+  const allergiesArray = allergies ? (Array.isArray(allergies) ? allergies : [allergies]) : [];
 
   if (
     !diseaseArray.length ||
     !allergiesArray.length ||
     !vaccinationName ||
     !lastVaccinationDate ||
-    !nextVaccinatonScheduleDate
+    !nextVaccinatonScheduleDate ||
+    prescription.length === 0 // Enforce prescription file requirement matching frontend
   ) {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, "All fields are required", false));
+    await cleanTempFiles(allIncomingFiles);
+    return res.status(400).json(new ApiResponse(400, "All text fields and prescription image are required", false));
   }
 
-  // Upload files if they exist
-  const xrayUpload = xrayFiles[0]
-    ? await uploadOnCloudinary(xrayFiles[0].path)
-    : null;
-  const reportsUpload = reports[0]
-    ? await uploadOnCloudinary(reports[0].path)
-    : null;
-  const prescriptionUpload = prescription[0]
-    ? await uploadOnCloudinary(prescription[0].path)
-    : null;
+  // 2. Prevent Duplicate Medical Profile Document Entities
+  const recordExists = await PetMedicalRecord.findOne({ petId });
+  if (recordExists) {
+    await cleanTempFiles(allIncomingFiles);
+    return res.status(400).json(new ApiResponse(400, "Medical record already exists", false));
+  }
 
-  const petInfo = new PetMedicalRecord({
-    petId,
-    disease: diseaseArray,
-    allergies: allergiesArray,
-    vaccinationName, //// added missing field
-    xRay: xrayUpload
-      ? [
-          {
-            url: xrayUpload.secure_url,
-            mimetype: xrayFiles[0].mimetype,
-            size: xrayFiles[0].size,
-            cloudinaryImageId: xrayUpload.public_id,
-          },
-        ]
-      : [],
-    reports: reportsUpload
-      ? [
-          {
-            url: reportsUpload.secure_url,
-            mimetype: reports[0].mimetype,
-            size: reports[0].size,
-            cloudinaryImageId: reportsUpload.public_id,
-          },
-        ]
-      : [],
-    prescription: prescriptionUpload
-      ? [
-          {
-            url: prescriptionUpload.secure_url,
-            mimetype: prescription[0].mimetype,
-            size: prescription[0].size,
-            cloudinaryImageId: prescriptionUpload.public_id,
-          },
-        ]
-      : [],
-    lastVaccinationDate,
-    nextVaccinatonScheduleDate,
-    notes,
-  });
+  console.time("Create Pet Medical Record Total Time");
 
-  await petInfo.save();
-  return res
-    .status(201)
-    .json(
-      new ApiResponse(201, "Pet medical record created successfully", petInfo),
+  // 3. Parallel Cloud Provider Delivery Pipeline
+  console.time("All Cloudinary Uploads");
+  try {
+    const uploadPromises = [
+      xrayFiles[0] ? uploadOnCloudinary(xrayFiles[0].path) : Promise.resolve(null),
+      reports[0] ? uploadOnCloudinary(reports[0].path) : Promise.resolve(null),
+      prescription[0] ? uploadOnCloudinary(prescription[0].path) : Promise.resolve(null),
+    ];
+
+    const [xrayUpload, reportsUpload, prescriptionUpload] = await Promise.all(uploadPromises);
+    console.timeEnd("All Cloudinary Uploads");
+
+    // 4. Instantiating the Monolithic Profile State Structure
+    const petInfo = new PetMedicalRecord({
+      petId,
+      disease: diseaseArray,
+      allergies: allergiesArray,
+      vaccinationName,
+      xRay: xrayUpload ? [{
+        url: xrayUpload.secure_url,
+        mimetype: xrayFiles[0].mimetype,
+        size: xrayFiles[0].size,
+        cloudinaryImageId: xrayUpload.public_id,
+      }] : [],
+      reports: reportsUpload ? [{
+        url: reportsUpload.secure_url,
+        mimetype: reports[0].mimetype,
+        size: reports[0].size,
+        cloudinaryImageId: reportsUpload.public_id,
+      }] : [],
+      prescription: prescriptionUpload ? [{
+        url: prescriptionUpload.secure_url,
+        mimetype: prescription[0].mimetype,
+        size: prescription[0].size,
+        cloudinaryImageId: prescriptionUpload.public_id,
+      }] : [],
+      lastVaccinationDate,
+      nextVaccinatonScheduleDate,
+      notes,
+    });
+
+    console.time("Saving pet medical files to db time");
+    await petInfo.save();
+    console.timeEnd("Saving pet medical files to db time");
+
+    console.timeEnd("Create Pet Medical Record Total Time");
+
+    return res.status(201).json(
+      new ApiResponse(201, "Pet medical record created successfully", petInfo)
     );
+
+  } catch (uploadError) {
+    // If Cloudinary uploads fail mid-way, purge remaining files locally to avoid memory bloat
+    await cleanTempFiles(allIncomingFiles);
+    throw new ApiError(500, "Media ingestion failure engine loop interrupted", uploadError);
+  }
 });
 
 // Get Pet + Medical Info
@@ -253,14 +261,21 @@ const getPetInfo = asyncHandler(async (req, res) => {
 // Update Pet Medical Info
 const updatePetMedicalInfo = asyncHandler(async (req, res) => {
   const { id: petId } = req.params;
-  if (!petId)
+  if (!petId) {
     return res.status(400).json(new ApiResponse(400, "Invalid petId", false));
+  }
 
+  // 1. Fetch current database snapshot before processing any files
   const record = await PetMedicalRecord.findOne({ petId });
-  if (!record)
-    return res
-      .status(404)
-      .json(new ApiResponse(404, "Medical record not found", false));
+  if (!record) {
+    // Clean up files immediately if the entity doesn't exist
+    const xrayFile = req.files?.["XRay"] || [];
+    const reportsFile = req.files?.["Reports"] || [];
+    const prescriptionFile = req.files?.["Prescription"] || [];
+    await cleanTempFiles([...xrayFile, ...reportsFile, ...prescriptionFile]);
+    
+    return res.status(404).json(new ApiResponse(404, "Medical record not found", false));
+  }
 
   const {
     vaccinationName,
@@ -270,71 +285,91 @@ const updatePetMedicalInfo = asyncHandler(async (req, res) => {
     nextVaccinatonScheduleDate,
     notes,
   } = req.body;
+
   const xrayFile = req.files?.["XRay"] || [];
   const reportsFile = req.files?.["Reports"] || [];
   const prescriptionFile = req.files?.["Prescription"] || [];
+  const allIncomingFiles = [...xrayFile, ...reportsFile, ...prescriptionFile];
 
+  // 2. Map text fields dynamically if provided
   if (disease) record.disease = Array.isArray(disease) ? disease : [disease];
-  if (allergies)
-    record.allergies = Array.isArray(allergies) ? allergies : [allergies];
+  if (allergies) record.allergies = Array.isArray(allergies) ? allergies : [allergies];
   if (vaccinationName) record.vaccinationName = vaccinationName;
   if (lastVaccinationDate) record.lastVaccinationDate = lastVaccinationDate;
-  if (nextVaccinatonScheduleDate)
-    record.nextVaccinatonScheduleDate = nextVaccinatonScheduleDate;
-  if (notes) record.notes = notes;
+  if (nextVaccinatonScheduleDate) record.nextVaccinatonScheduleDate = nextVaccinatonScheduleDate;
+  if (notes !== undefined) record.notes = notes;
 
-  if (xrayFile.length > 0) {
-    const existingXrayId = record.xRay?.[0]?.cloudinaryImageId;
-    const updatedXray = await updateOnCloudinary(
-      xrayFile[0].path,
-      existingXrayId,
-    );
-    record.xRay = [
-      {
-        url: updatedXray.secure_url,
-        mimetype: xrayFile[0].mimetype,
-        size: xrayFile[0].size,
-        cloudinaryImageId: updatedXray.public_id,
-      },
-    ];
+  console.time("Parallel Cloudinary Updates");
+  try {
+    const uploadPromises = [];
+
+    // Queue X-Ray overwrite if a new file is uploaded
+    if (xrayFile.length > 0) {
+      const existingXrayId = record.xRay?.[0]?.cloudinaryImageId;
+      uploadPromises.push(
+        updateOnCloudinary(xrayFile[0].path, existingXrayId).then((res) => ({
+          type: "xray",
+          payload: res,
+          meta: xrayFile[0],
+        }))
+      );
+    }
+
+    // Queue Reports overwrite if a new file is uploaded
+    if (reportsFile.length > 0) {
+      const existingReportId = record.reports?.[0]?.cloudinaryImageId;
+      uploadPromises.push(
+        updateOnCloudinary(reportsFile[0].path, existingReportId).then((res) => ({
+          type: "reports",
+          payload: res,
+          meta: reportsFile[0],
+        }))
+      );
+    }
+
+    // Queue Prescription overwrite if a new file is uploaded
+    if (prescriptionFile.length > 0) {
+      const existingPrescriptionId = record.prescription?.[0]?.cloudinaryImageId;
+      uploadPromises.push(
+        updateOnCloudinary(prescriptionFile[0].path, existingPrescriptionId).then((res) => ({
+          type: "prescription",
+          payload: res,
+          meta: prescriptionFile[0],
+        }))
+      );
+    }
+
+    // 3. Resolve all Cloudinary network operations in parallel
+    const uploadResults = await Promise.all(uploadPromises);
+    console.timeEnd("Parallel Cloudinary Updates");
+
+    // 4. Map the resolved assets back to the database schema structure
+    uploadResults.forEach(({ type, payload, meta }) => {
+      const updatedAssetBlock = [
+        {
+          url: payload.secure_url,
+          mimetype: meta.mimetype,
+          size: meta.size,
+          cloudinaryImageId: payload.public_id,
+        },
+      ];
+
+      if (type === "xray") record.xRay = updatedAssetBlock;
+      if (type === "reports") record.reports = updatedAssetBlock;
+      if (type === "prescription") record.prescription = updatedAssetBlock;
+    });
+
+    console.time("Saving record changes to database");
+    await record.save();
+    console.timeEnd("Saving record changes to database");
+
+    return res.status(200).json(new ApiResponse(200, "Medical info updated", record));
+
+  } catch (error) {
+    // Purge any local temporary files immediately to maintain storage efficiency if the transaction crashes
+    await cleanTempFiles(allIncomingFiles);
+    throw new ApiError(500, "Media asset modification sequence failed", error?.message || error);
   }
-
-  if (reportsFile.length > 0) {
-    const existingReportId = record.reports?.[0]?.cloudinaryImageId;
-    const updatedReport = await updateOnCloudinary(
-      reportsFile[0].path,
-      existingReportId,
-    );
-    record.reports = [
-      {
-        url: updatedReport.secure_url,
-        mimetype: reportsFile[0].mimetype,
-        size: reportsFile[0].size,
-        cloudinaryImageId: updatedReport.public_id,
-      },
-    ];
-  }
-
-  if (prescriptionFile.length > 0) {
-    const existingPrescriptionId = record.prescription?.[0]?.cloudinaryImageId;
-    const updatedPrescription = await updateOnCloudinary(
-      prescriptionFile[0].path,
-      existingPrescriptionId,
-    );
-    record.prescription = [
-      {
-        url: updatedPrescription.secure_url,
-        mimetype: prescriptionFile[0].mimetype,
-        size: prescriptionFile[0].size,
-        cloudinaryImageId: updatedPrescription.public_id,
-      },
-    ];
-  }
-
-  await record.save();
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Medical info updated", record));
 });
 
 // Remove Pet & Medical Info
